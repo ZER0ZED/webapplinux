@@ -1,30 +1,53 @@
-const { v4: uuidv4 } = require('uuid');
+const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-class User {
-  constructor(email, password, name) {
-    this.id = uuidv4();
-    this.email = email;
-    this.password = password;
-    this.name = name;
-    this.createdAt = new Date().toISOString();
+const userSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, 'Please provide a name'],
+    trim: true
+  },
+  email: {
+    type: String,
+    required: [true, 'Please provide an email'],
+    unique: true,
+    lowercase: true,
+    trim: true
+  },
+  password: {
+    type: String,
+    required: [true, 'Please provide a password'],
+    minlength: 6,
+    select: false  // Don't include password in queries by default
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+// Hash password before saving
+userSchema.pre('save', async function(next) {
+  // Only hash if password is modified
+  if (!this.isModified('password')) {
+    return next();
   }
 
-  // Hash password before saving
-  static async hashPassword(password) {
-    return await bcrypt.hash(password, 10);
-  }
+  this.password = await bcrypt.hash(this.password, 10);
+  next();
+});
 
-  // Compare password for login
-  static async comparePassword(plainPassword, hashedPassword) {
-    return await bcrypt.compare(plainPassword, hashedPassword);
-  }
+// Method to compare passwords
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
+};
 
-  // Remove password from response
-  toJSON() {
-    const { password, ...userWithoutPassword } = this;
-    return userWithoutPassword;
-  }
-}
+// Don't return password in JSON responses
+userSchema.methods.toJSON = function() {
+  const user = this.toObject();
+  delete user.password;
+  delete user.__v;
+  return user;
+};
 
-module.exports = User;
+module.exports = mongoose.model('User', userSchema);

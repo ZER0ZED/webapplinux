@@ -3,13 +3,20 @@ node_modules/
 
 # Environment variables
 .env
+.env.local
 
 # Logs
 *.log
+logs/
 
 # OS files
 .DS_Store
 
+# Credentials (IMPORTANT - DO NOT COMMIT!)
+CREDENTIALS.txt
+*.pid
+
 # Claude Code files
 .claude/
 CLAUDE.md
+CREDENTIALS.txt

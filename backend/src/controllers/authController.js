@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const db = require('../config/database');
 
 // Register new user
 exports.register = async (req, res) => {
@@ -16,7 +15,7 @@ exports.register = async (req, res) => {
     }
 
     // Check if user already exists
-    const existingUser = db.findUserByEmail(email);
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({
         success: false,
@@ -24,16 +23,16 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Hash password
-    const hashedPassword = await User.hashPassword(password);
-
-    // Create new user
-    const user = new User(email, hashedPassword, name);
-    db.createUser(user);
+    // Create new user (password will be hashed automatically by pre-save hook)
+    const user = await User.create({
+      name,
+      email,
+      password
+    });
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: user.id, email: user.email },
+      { id: user._id, email: user.email },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -68,8 +67,8 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Find user
-    const user = db.findUserByEmail(email);
+    // Find user (include password for comparison)
+    const user = await User.findOne({ email }).select('+password');
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -78,7 +77,7 @@ exports.login = async (req, res) => {
     }
 
     // Check password
-    const isPasswordValid = await User.comparePassword(password, user.password);
+    const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
@@ -88,7 +87,7 @@ exports.login = async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: user.id, email: user.email },
+      { id: user._id, email: user.email },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -97,7 +96,7 @@ exports.login = async (req, res) => {
       success: true,
       message: 'Login successful',
       data: {
-        user: { id: user.id, email: user.email, name: user.name },
+        user: { id: user._id, email: user.email, name: user.name },
         token
       }
     });
@@ -111,9 +110,9 @@ exports.login = async (req, res) => {
 };
 
 // Get current user
-exports.getCurrentUser = (req, res) => {
+exports.getCurrentUser = async (req, res) => {
   try {
-    const user = db.findUserById(req.user.id);
+    const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({
         success: false,

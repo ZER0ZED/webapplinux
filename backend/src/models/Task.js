@@ -1,15 +1,39 @@
-const { v4: uuidv4 } = require('uuid');
+const mongoose = require('mongoose');
 
-class Task {
-  constructor(title, description, userId) {
-    this.id = uuidv4();
-    this.title = title;
-    this.description = description;
-    this.completed = false;
-    this.userId = userId;
-    this.createdAt = new Date().toISOString();
-    this.updatedAt = new Date().toISOString();
+const taskSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: [true, 'Please provide a task title'],
+    trim: true
+  },
+  description: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  completed: {
+    type: Boolean,
+    default: false
+  },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
   }
-}
+});
 
-module.exports = Task;
+// Update the updatedAt timestamp before saving
+taskSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
+});
+
+module.exports = mongoose.model('Task', taskSchema);

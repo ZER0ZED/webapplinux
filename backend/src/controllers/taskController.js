@@ -1,10 +1,9 @@
 const Task = require('../models/Task');
-const db = require('../config/database');
 
 // Get all tasks for the logged-in user
-exports.getAllTasks = (req, res) => {
+exports.getAllTasks = async (req, res) => {
   try {
-    const tasks = db.findTasksByUserId(req.user.id);
+    const tasks = await Task.find({ userId: req.user.id }).sort({ createdAt: -1 });
 
     res.json({
       success: true,
@@ -20,9 +19,9 @@ exports.getAllTasks = (req, res) => {
 };
 
 // Get a single task by ID
-exports.getTaskById = (req, res) => {
+exports.getTaskById = async (req, res) => {
   try {
-    const task = db.findTaskById(req.params.id);
+    const task = await Task.findById(req.params.id);
 
     if (!task) {
       return res.status(404).json({
@@ -32,7 +31,7 @@ exports.getTaskById = (req, res) => {
     }
 
     // Check if task belongs to user
-    if (task.userId !== req.user.id) {
+    if (task.userId.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to access this task'
@@ -53,7 +52,7 @@ exports.getTaskById = (req, res) => {
 };
 
 // Create a new task
-exports.createTask = (req, res) => {
+exports.createTask = async (req, res) => {
   try {
     const { title, description } = req.body;
 
@@ -66,8 +65,11 @@ exports.createTask = (req, res) => {
     }
 
     // Create task
-    const task = new Task(title, description || '', req.user.id);
-    db.createTask(task);
+    const task = await Task.create({
+      title,
+      description: description || '',
+      userId: req.user.id
+    });
 
     res.status(201).json({
       success: true,
@@ -84,9 +86,9 @@ exports.createTask = (req, res) => {
 };
 
 // Update a task
-exports.updateTask = (req, res) => {
+exports.updateTask = async (req, res) => {
   try {
-    const task = db.findTaskById(req.params.id);
+    const task = await Task.findById(req.params.id);
 
     if (!task) {
       return res.status(404).json({
@@ -96,7 +98,7 @@ exports.updateTask = (req, res) => {
     }
 
     // Check if task belongs to user
-    if (task.userId !== req.user.id) {
+    if (task.userId.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to update this task'
@@ -104,12 +106,11 @@ exports.updateTask = (req, res) => {
     }
 
     // Update task
-    const updates = {
-      ...req.body,
-      updatedAt: new Date().toISOString()
-    };
-
-    const updatedTask = db.updateTask(req.params.id, updates);
+    const updatedTask = await Task.findByIdAndUpdate(
+      req.params.id,
+      { ...req.body, updatedAt: Date.now() },
+      { new: true, runValidators: true }
+    );
 
     res.json({
       success: true,
@@ -126,9 +127,9 @@ exports.updateTask = (req, res) => {
 };
 
 // Delete a task
-exports.deleteTask = (req, res) => {
+exports.deleteTask = async (req, res) => {
   try {
-    const task = db.findTaskById(req.params.id);
+    const task = await Task.findById(req.params.id);
 
     if (!task) {
       return res.status(404).json({
@@ -138,14 +139,14 @@ exports.deleteTask = (req, res) => {
     }
 
     // Check if task belongs to user
-    if (task.userId !== req.user.id) {
+    if (task.userId.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to delete this task'
       });
     }
 
-    db.deleteTask(req.params.id);
+    await Task.findByIdAndDelete(req.params.id);
 
     res.json({
       success: true,
