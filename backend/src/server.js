@@ -29,6 +29,14 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
 
+// Hello World endpoint
+app.get('/api/hello', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Hello World'
+  });
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
